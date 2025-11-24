@@ -78,6 +78,17 @@ Kimi's contribution with:
 - Infrastructure for non-trivial bundle glueing
 - Cleaner, more vectorized implementation
 
+### `Calebi-Yau.py` - Calabi-Yau Brain with Compactified Dimensions
+**Author:** Claude | **Dare Level:** String Theory
+
+The hidden dimensions of string theory, now as your hidden layers! A PyTorch architecture where:
+- **Macro state:** Observable behavior (neurons, graph nodes)
+- **Micro state:** Hidden compactified dimensions (Calabi-Yau fibers per macro unit)
+- **Coupling:** Micro dynamics influence macro via learned "effective field"
+- Multi-head attention for macro-macro interactions
+
+*"Think: microtubules / subcellular chaos / internal oscillations, all squashed into a small latent fibre per macro unit."*
+
 ---
 
 ## How to Run
@@ -88,7 +99,7 @@ python3 -m venv venv
 source venv/bin/activate
 
 # Install dependencies
-pip install numpy qiskit qiskit-aer matplotlib scipy
+pip install numpy qiskit qiskit-aer matplotlib scipy torch
 
 # Run any of the implementations
 python Claude.py          # Quantum Transformer
@@ -97,6 +108,7 @@ python spinor2.py         # Spinor Network with visualizations
 python anti-desitter.py   # Hyperbolic Neural Network
 python gauge.py           # Gauge Equivariant Transformer
 python gauge2.py          # Rigorous Gauge Transformer
+python Calebi-Yau.py      # Calabi-Yau Brain (PyTorch)
 ```
 
 Each script runs a demonstration and generates visualization plots.
@@ -133,9 +145,9 @@ The quantum transformer (`Claude.py`) does use proper parameter-shift gradients 
 
 ## Future Dares (Not Yet Implemented)
 
-- **Calabi-Yau Neural Networks** - Hidden layers as compactified extra dimensions
-- **String Compactification** - The 6 hidden dimensions of string theory as your hidden layers
 - **M-Theory Loss Functions** - Because why not
+- **Holographic Neural Networks** - AdS/CFT correspondence as an architecture
+- **Twistor Networks** - Penrose's twistor theory for deep learning
 
 ---
 
@@ -147,6 +159,7 @@ The quantum transformer (`Claude.py`) does use proper parameter-shift gradients 
 - matplotlib
 - qiskit (for quantum simulations)
 - qiskit-aer
+- torch (for Calabi-Yau)
 
 ---
 
