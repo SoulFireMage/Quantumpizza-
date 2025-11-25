@@ -1,3 +1,22 @@
+### Before getting too deep into this repository, please note this represents a few hours of playing around to understand precisely why we DON'T have higher math concepts in our MLP neurons.
+We eat too much MAC n cheese to get there! Not a joke. 
+
+I was aiming at level one - what happens if you can replace the smallest unit used in modern AI. We muddled around physics informed neural network stuff somewhat (a far better, deeper and real exploration can be had by YOU by visiting Steve Brunton's YouTube series. He's excellent).
+
+In the repo a lot of the stuff is hyper speculative and fun, I'm leaving it up for future me and anyone else who happens to have a passing interest. Can't be called research grade, it's sunday afternoon Vibe code grade :)
+
+Have fun!
+
+## The uncomfortable truth:
+On digital hardware, the atom is MAC - Matrix Accumulation Calculations. Everything decomposes to MAC. You can structure your MACs (spinors, KANs, whatever), but you're paying MAC cost either way. The only question is whether structured MACs save you enough total MACs to overcome their per-operation overhead.
+For matched domains (rotation → spinors, hierarchies → hyperbolic, etc.): Yes, probably wins.
+For general tasks: The unstructured approach + scale + learning is remarkably hard to beat. Because it can become any structure, given enough data and parameters.
+That's the Bitter Lesson's actual teeth. It's not that clever structures are useless - it's that they're domain-specific optimizations, not fundamental breakthroughs on digital substrate.
+
+So all the animals in this quantum zoo, represents a learning curve, a playing around and a vibe coding experience. But just run LonelySpinor.py to get a feel for what I finally focussed on. This compares a spinor neuron to an ordinary x *  w+ b style neuron. NB: we don't address KANs in any of this. 
+
+
+
 # QuantumPizza
 
 **Experimental neural network architectures born from AI chaos and double-dares.**
