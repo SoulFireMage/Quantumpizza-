@@ -18,7 +18,6 @@ makes something a spinor. See demo_720().
 """
 
 import numpy as np
-import matplotlib.pyplot as plt
 
 
 # =============================================================================
@@ -396,6 +395,11 @@ def demo():
     │ Structure      │ None (learned)   │ Built-in (rotation)  │ Built-in (rotation)  │
     └────────────────┴──────────────────┴──────────────────────┴──────────────────────┘
 
+    The scalar-part, R vs -R and 360° rows describe the bare transforms
+    R·x·R† and R·x, before bias and normalize. With a bias the neuron can
+    hide the sign: for scalar x = 1 and b = 2, normalize(R·x + b) is +1
+    for both R = +1 and R = -1.
+
     Cost note: geometric_product uses a dense 8×8×8 einsum, 512 terms with
     2 multiplies each, though only 64 of the 512 table entries are non-zero.
     On even elements the product is a quaternion product: 16 multiplies.
@@ -454,6 +458,8 @@ def demo_720():
 
 def plot_comparison_diagram():
     """Visual comparison of both neurons."""
+    # Imported here so the maths can be imported without matplotlib
+    import matplotlib.pyplot as plt
     fig, axes = plt.subplots(1, 2, figsize=(14, 6))
     
     # SCALAR NEURON
@@ -577,4 +583,5 @@ if __name__ == "__main__":
     demo()
     demo_720()
     plot_comparison_diagram()
+    import matplotlib.pyplot as plt
     plt.show()
