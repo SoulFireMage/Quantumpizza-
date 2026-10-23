@@ -6,9 +6,15 @@ The Lonely SPINOR Neuron
 The geometric primitive, side-by-side with the scalar primitive.
 
 SCALAR NEURON:     y = σ(w·x + b)
-SPINOR NEURON:     y = normalize(R·x·R† + b)
+ROTOR NEURON:      y = normalize(R·x·R† + b)     (sandwich: an SO(3) rotation)
+SPINOR NEURON:     y = normalize(R·x + b)        (one-sided: the true spinor action)
 
 Same SHAPE of computation, different PRIMITIVE operation.
+
+The sandwich R·x·R† gives the same answer for R and -R, so it cannot see
+the double cover. The one-sided product R·x keeps the sign: a 360° turn
+sends x to -x, and only a 720° turn brings it back. That sign is what
+makes something a spinor. See demo_720().
 """
 
 import numpy as np
@@ -131,6 +137,19 @@ def exp_bivector(B):
     return result
 
 
+def rotor(B):
+    """
+    THE NEW "WEIGHT TRANSFORM" - bivector to rotor, with the angle convention.
+
+    R = exp(-B/2)
+
+    exp(B) on its own rotates by 2|B|, because the sandwich applies R twice.
+    Halving it means |B| is the rotation angle in radians, and the plane of
+    B is the plane of rotation.
+    """
+    return exp_bivector(-0.5 * B)
+
+
 def sandwich(R, x):
     """
     THE NEW "TRANSFORM" - Sandwich Product.
@@ -141,10 +160,28 @@ def sandwich(R, x):
     
     Unlike scalar multiply (scales), this ROTATES.
     Rotation preserves lengths, angles, handedness.
+
+    On an even element (scalar + bivector) the scalar part is untouched and
+    the bivector part turns like a 3-vector. R and -R give the same result,
+    so this is SO(3), not the spinor action.
     """
     temp = geometric_product(R, x)
     result = geometric_product(temp, reverse(R))
     return result
+
+
+def spinor_action(R, x):
+    """
+    THE SPINOR "TRANSFORM" - one-sided product.
+
+    ψ' = R · ψ
+
+    On the even subalgebra this is quaternion multiplication. It mixes the
+    scalar and bivector parts, and R and -R give opposite results: this is
+    the double cover, SU(2) rather than SO(3). It also costs one geometric
+    product instead of two.
+    """
+    return geometric_product(R, x)
 
 
 def normalize(mv):
@@ -177,7 +214,7 @@ def spinor_neuron_explicit(input_spinor, weight_bivector, bias_spinor):
         bias_spinor:     8-dim spinor
     
     Operations:
-        1. EXP:          R = exp(B)           (bivector → rotor)
+        1. EXP:          R = exp(-B/2)        (bivector → rotor)
         2. GEO-PROD 1:   temp = R · x         (rotor × spinor)
         3. GEO-PROD 2:   rotated = temp · R†  (complete sandwich)
         4. ADD BIAS:     sum = rotated + b    (spinor + spinor)
@@ -189,18 +226,18 @@ def spinor_neuron_explicit(input_spinor, weight_bivector, bias_spinor):
     
     # Step 1: Convert bivector weight to rotor
     # (This is like "activating" the weight)
-    rotor = exp_bivector(weight_bivector)
+    R = rotor(weight_bivector)
     print(f"  1. Weight bivector → Rotor")
     print(f"     B = {weight_bivector}")
-    print(f"     R = exp(B) = {rotor}")
+    print(f"     R = exp(-B/2) = {R}")
     
     # Step 2: First half of sandwich
-    temp = geometric_product(rotor, input_spinor)
+    temp = geometric_product(R, input_spinor)
     print(f"  2. First geometric product: R · x")
     print(f"     temp = {temp}")
     
     # Step 3: Second half of sandwich (with reverse)
-    rotor_reverse = reverse(rotor)
+    rotor_reverse = reverse(R)
     rotated = geometric_product(temp, rotor_reverse)
     print(f"  3. Second geometric product: temp · R†")
     print(f"     R† = {rotor_reverse}")
@@ -220,10 +257,17 @@ def spinor_neuron_explicit(input_spinor, weight_bivector, bias_spinor):
 
 
 def spinor_neuron(input_spinor, weight_bivector, bias_spinor):
-    """Compact version - same computation."""
-    R = exp_bivector(weight_bivector)
+    """Compact version - same computation (sandwich, so really a rotor neuron)."""
+    R = rotor(weight_bivector)
     rotated = sandwich(R, input_spinor)
     return normalize(rotated + bias_spinor)
+
+
+def true_spinor_neuron(input_spinor, weight_bivector, bias_spinor):
+    """One-sided version: y = normalize(R·x + b). Keeps the double cover."""
+    R = rotor(weight_bivector)
+    turned = spinor_action(R, input_spinor)
+    return normalize(turned + bias_spinor)
 
 
 # =============================================================================
@@ -245,7 +289,7 @@ def spinor_neuron_multi_input(input_spinors, weight_bivectors, bias_spinor):
     # Accumulate rotated inputs
     accumulated = np.zeros(8)
     for i in range(n_inputs):
-        R = exp_bivector(weight_bivectors[i])
+        R = rotor(weight_bivectors[i])
         rotated = sandwich(R, input_spinors[i])
         accumulated += rotated
     
@@ -329,28 +373,36 @@ def demo():
     print("COMPARISON: WHAT'S DIFFERENT?")
     print("=" * 70)
     print("""
-    ┌────────────────┬─────────────────────┬─────────────────────────┐
-    │                │ SCALAR NEURON       │ SPINOR NEURON           │
-    ├────────────────┼─────────────────────┼─────────────────────────┤
-    │ Input          │ n scalars           │ 1 spinor (4D effective) │
-    │ Weight         │ n scalars           │ 1 bivector (3D)         │
-    │ Bias           │ 1 scalar            │ 1 spinor (4D effective) │
-    │ Output         │ 1 scalar            │ 1 spinor (4D effective) │
-    ├────────────────┼─────────────────────┼─────────────────────────┤
-    │ Core operation │ MULTIPLY xᵢ × wᵢ    │ SANDWICH R·x·R†         │
-    │ What it does   │ SCALE               │ ROTATE                  │
-    │ Preserves      │ Nothing             │ Norm, angles, structure │
-    ├────────────────┼─────────────────────┼─────────────────────────┤
-    │ Activation     │ tanh (arbitrary)    │ normalize (geometric)   │
-    │ What it does   │ Squash to (-1,1)    │ Project to unit sphere  │
-    ├────────────────┼─────────────────────┼─────────────────────────┤
-    │ # of MACs      │ n + 1               │ ~50-100 (for Cl(3,0))   │
-    │ Structure      │ None (learned)      │ Built-in (rotation)     │
-    └────────────────┴─────────────────────┴─────────────────────────┘
-    
+    ┌────────────────┬──────────────────┬──────────────────────┬──────────────────────┐
+    │                │ SCALAR NEURON    │ ROTOR NEURON         │ SPINOR NEURON        │
+    ├────────────────┼──────────────────┼──────────────────────┼──────────────────────┤
+    │ Input          │ n scalars        │ 1 even element (4D)  │ 1 even element (4D)  │
+    │ Weight         │ n scalars        │ 1 bivector (3D)      │ 1 bivector (3D)      │
+    │ Bias           │ 1 scalar         │ 1 even element (4D)  │ 1 even element (4D)  │
+    │ Output         │ 1 scalar         │ 1 even element (4D)  │ 1 even element (4D)  │
+    ├────────────────┼──────────────────┼──────────────────────┼──────────────────────┤
+    │ Core operation │ MULTIPLY xᵢ × wᵢ │ SANDWICH R·x·R†      │ ONE-SIDED R·x        │
+    │ What it does   │ SCALE            │ ROTATE (SO(3))       │ ROTATE (SU(2))       │
+    │ Scalar part    │ -                │ frozen               │ mixed in             │
+    │ R vs -R        │ -                │ same output          │ opposite outputs     │
+    │ 360° turn      │ -                │ back to x            │ x → -x (720° for x)  │
+    ├────────────────┼──────────────────┼──────────────────────┼──────────────────────┤
+    │ Activation     │ tanh (arbitrary) │ normalize            │ normalize            │
+    │ What it does   │ Squash to (-1,1) │ Project to unit S³   │ Project to unit S³   │
+    ├────────────────┼──────────────────┼──────────────────────┼──────────────────────┤
+    │ Multiplies     │ n                │ 2 products:          │ 1 product:           │
+    │  (dense einsum)│                  │  ~2,000              │  ~1,000              │
+    │  (quaternion)  │                  │  32                  │  16                  │
+    │ Structure      │ None (learned)   │ Built-in (rotation)  │ Built-in (rotation)  │
+    └────────────────┴──────────────────┴──────────────────────┴──────────────────────┘
+
+    Cost note: geometric_product uses a dense 8×8×8 einsum, 512 terms with
+    2 multiplies each, though only 64 of the 512 table entries are non-zero.
+    On even elements the product is a quaternion product: 16 multiplies.
+
     THE KEY QUESTION:
-    
-    Spinor neuron uses MORE MACs per "neuron."
+
+    Spinor neuron uses MORE multiplies per "neuron."
     But does it capture MORE MEANING per neuron?
     
     If the task involves rotation/orientation:
@@ -358,6 +410,45 @@ def demo():
       - Spinor neuron has it BUILT IN
     
     The bet: Richer primitive = fewer neurons needed = less learning
+    (Not tested here: nothing in this file trains.)
+    """)
+
+
+def demo_720():
+    """
+    The test only a true spinor passes.
+
+    Turn by an angle t in the e12 plane, from 0 to 720°, and compare each
+    transform's output with the input x. The sandwich comes back to x at
+    360°. The one-sided product reaches -x at 360° and only gets back to x
+    at 720°.
+    """
+    print("\n" + "=" * 70)
+    print("THE 720° TEST: SANDWICH vs ONE-SIDED")
+    print("=" * 70)
+
+    x = normalize(np.array([0.8, 0., 0., 0.3, 0., -0.2, 0.4, 0.]))
+    plane = np.zeros(8)
+    plane[3] = 1.0  # e12
+
+    print(f"\n  x = {np.round(x, 3)}")
+    print(f"\n  {'angle':>7}  {'sandwich vs x':>15}  {'one-sided vs x':>15}")
+    print(f"  {'':>7}  {'(output · x)':>15}  {'(output · x)':>15}")
+    for deg in [0, 90, 180, 270, 360, 450, 540, 630, 720]:
+        R = rotor(np.radians(deg) * plane)
+        s = np.dot(sandwich(R, x), x)
+        o = np.dot(spinor_action(R, x), x)
+        mark = "   ← spinor says -x" if deg == 360 else ""
+        print(f"  {deg:>6}°  {s:>15.3f}  {o:>15.3f}{mark}")
+
+    print("""
+    1.000 means "same as x", -1.000 means "exactly -x".
+
+    Sandwich: back to 1.000 at 360°. It cannot tell a full turn from none.
+    One-sided: -1.000 at 360°, 1.000 at 720°. That sign is the double cover.
+
+    (The sandwich column dips but never reaches -1: the scalar part of x,
+    and its part in the plane of rotation (e12 here), never move.)
     """)
 
 
@@ -484,5 +575,6 @@ def plot_comparison_diagram():
 
 if __name__ == "__main__":
     demo()
+    demo_720()
     plot_comparison_diagram()
     plt.show()
