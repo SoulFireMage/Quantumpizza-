@@ -42,8 +42,18 @@ RESULTS (256 clean training samples, median of 3 seeds):
       parameters. So against the honest control the gain is 3x-5x fewer
       parameters, not 100x. The MLP is a weak baseline for a linear task.
 
-Not tested yet: few or noisy samples. That is where a 3-parameter
-constraint should beat a 9- or 16-parameter linear map, if anywhere.
+FEW, NOISY SAMPLES (--sweep; noise 0.05 on targets, clean wedge test,
+median of 8 trials; about 5 minutes):
+    Prediction, made before running: least-squares excess error grows like
+    noise² × parameters / N, so the linear map should be ~3x worse on
+    vectors (9 vs 3) and ~5x worse on spinors (16 vs 3), and far worse when
+    N is below the dimension, where it is underdetermined.
+    - N = 2-3: the neuron wins by 60x (vectors) and 200-300x (spinors).
+    - N = 5-100: vectors 2.5-7x, close to the prediction. Spinors 7-20x,
+      above it. A guess, not tested: the wedge test makes the linear map
+      extrapolate, which costs it more in 4D.
+    So the constraint pays exactly where it should: with little data. With
+    plenty of clean data the advantage shrinks to the parameter ratio.
 """
 
 import numpy as np
@@ -229,6 +239,45 @@ def run_task(kind):
     return rows
 
 
+def run_sample_sweep(kind, sizes=(2, 3, 5, 10, 20, 50, 100), noise=0.05, trials=8):
+    """
+    Few or noisy samples: matching neuron (3 parameters) vs linear map (d²).
+
+    Targets get Gaussian noise of standard deviation `noise` per component;
+    the test set (the held-out wedge) is clean. For each size, `trials`
+    independent training sets are drawn and the median test MSE is kept.
+    The neuron is started twice per trial and keeps the start with the lower
+    training loss, so a bad start is not counted as the model's error.
+    """
+    idx = VEC if kind == 'vector' else EVEN
+    action = 'sandwich' if kind == 'vector' else 'one-sided'
+    rng = np.random.default_rng(7)
+    Xout, Yout = make_task(kind, 512, (270, 360), rng)
+
+    rows = []
+    for n in sizes:
+        e_neuron, e_linear = [], []
+        for t in range(trials):
+            X, Y = make_task(kind, n, (0, 270), rng)
+            Y = Y.copy()
+            Y[:, idx] += rng.normal(scale=noise, size=(n, len(idx)))
+            fits = [train_neuron(X, Y, action, seed=100 * t + k) for k in range(2)]
+            best = min(fits, key=lambda f: mse(f(X), Y))
+            e_neuron.append(mse(best(Xout), Yout))
+            e_linear.append(mse(train_linear(X, Y, idx)(Xout), Yout))
+        rows.append((n, np.median(e_neuron), np.median(e_linear)))
+    return rows
+
+
+def print_sweep(title, rows, d):
+    print("\n" + "=" * 70)
+    print(title)
+    print("=" * 70)
+    print(f"  {'samples':>7}{'neuron (3 params)':>20}{f'linear ({d * d} params)':>22}{'ratio':>9}")
+    for n, e_n, e_l in rows:
+        print(f"  {n:>7}{e_n:>20.2e}{e_l:>22.2e}{e_l / e_n:>9.1f}")
+
+
 def print_rows(title, rows):
     print("\n" + "=" * 70)
     print(title)
@@ -264,6 +313,14 @@ def plot(results):
 
 
 if __name__ == "__main__":
+    import sys
+    if '--sweep' in sys.argv:
+        print_sweep("FEW, NOISY SAMPLES: vectors (noise 0.05)",
+                    run_sample_sweep('vector'), 3)
+        print_sweep("FEW, NOISY SAMPLES: spinors (noise 0.05)",
+                    run_sample_sweep('spinor'), 4)
+        sys.exit()
+
     a = run_task('vector')
     print_rows("TASK A: learn v → R*·v·R*†  (vectors)", a)
     b = run_task('spinor')
